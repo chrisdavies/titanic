@@ -1,51 +1,25 @@
-function Tokenizer(str) {
-  this.str = str;
-  this.tokenStart = 0;
-  this.index = 0;
+function csvToObjects(csv, propertyNames, ignoreFirstRecord) {
+  var records = csvTo2DArray(csv).map(rowToObject);
+
+  return ignoreFirstRecord ? records.slice(1) : records;
+
+  function rowToObject(row) {
+    var obj = {};
+
+    row.forEach(function (field, index) {
+      var propName = propertyNames[index];
+
+      if (propName) {
+        obj[propName] = field;
+      }
+    });
+
+    return obj;
+  }
 }
 
-Tokenizer.prototype = {
-  get char () {
-    return this.str[this.index];
-  },
-
-  get peek () {
-    return this.str[this.index + 1];
-  },
-
-  get EOF () {
-    return this.index >= this.str.length;
-  },
-
-  moveNext: function () {
-    return ++this.index < this.str.length;
-  },
-
-  nextIndexOf: function (fn) {
-    for (var i = this.index; i < this.str.length; ++i) {
-      if (fn(this.str[i])) {
-        return i;
-      }
-    }
-
-    return -1;
-  },
-
-  popChar: function () {
-    var ch = this.char;
-    this.tokenStart = ++this.index;
-    return ch;
-  },
-
-  popToken: function () {
-    var token = this.str.slice(this.tokenStart, this.index);
-    this.tokenStart = this.index;
-    return token;
-  }
-};
-
-function csvTo2DArray(tokenizer) {
-  return readRows(tokenizer);
+function csvTo2DArray(csv) {
+  return readRows(new Tokenizer(csv));
 
   function readRows(tokenizer) {
     var rows = [];
@@ -60,23 +34,23 @@ function csvTo2DArray(tokenizer) {
   function readFields(tokenizer) {
     var fields = [];
 
-    while (!tokenizer.EOF) {
-      var field;
-
-      if (isQuotedField(tokenizer)) {
-        field = readQuotedField(tokenizer);
-      } else {
-        field = readUnquotedField(tokenizer);
-      }
-
-      fields.push(field.replace(/\"\"\"/g, '"'));
-
-      if (tokenizer.popChar() === '\n') {
-        break;
-      }
-    }
+    do {
+      fields.push(unescapeQuotes(readField(tokenizer)));
+    } while (!tokenizer.EOF && tokenizer.popChar() !== '\n')
 
     return fields;
+  }
+
+  function unescapeQuotes(field) {
+    return field.replace(/\"\"\"/g, '"');
+  }
+
+  function readField(tokenizer) {
+    if (isQuotedField(tokenizer)) {
+      return readQuotedField(tokenizer);
+    }
+
+    return readUnquotedField(tokenizer);
   }
 
   function isQuotedField(tokenizer) {
@@ -85,6 +59,8 @@ function csvTo2DArray(tokenizer) {
       return ch !== '"';
     });
 
+    // If we have a number of quotes that is not divisible by 3, then we have
+    // an unescaped quote and we are dealing with a quoted field
     return tokenizer.char === '"' && ((nonQuotedCharIndex - tokenizer.index) % 3);
   }
 
@@ -95,7 +71,10 @@ function csvTo2DArray(tokenizer) {
       }
     }
 
+    // Move past the ending quote
     tokenizer.moveNext();
+
+    // Return the token sans surrounding quotes
     return tokenizer.popToken().slice(1, -1);
   }
 
@@ -108,30 +87,5 @@ function csvTo2DArray(tokenizer) {
     while (tokenizer.moveNext() && tokenizer.char !== ',' && tokenizer.char !== '\n');
 
     return tokenizer.popToken();
-  }
-}
-
-function csvToObjects(csv, propertyNames, ignoreFirstRecord) {
-  var records = csvTo2DArray(new Tokenizer(csv))
-    .map(lineToObject);
-
-  if (ignoreFirstRecord) {
-    return records.slice(1);
-  } else {
-    return records;
-  }
-
-  function lineToObject(fields) {
-    var obj = {};
-
-    fields.forEach(function (field, index) {
-      var propName = propertyNames[index];
-
-      if (propName) {
-        obj[propName] = field;
-      }
-    });
-
-    return obj;
   }
 }
