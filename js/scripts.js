@@ -18,5 +18,23 @@
     })
     .slice(1);
 
+  // An example of a more generic filter function
+  function findWhere(arr, key, value) {
+    return records.filter(function (passenger) {
+      return passenger[key] === 'value';
+    });
+  }
+
+  findWhere(records, 'sex', 'male');
+
+  // Example of filter... Find all females that are older than 30
+  var womenOlderThan30 = records.filter(function (passenger) {
+    return passenger.sex === 'female' && parseInt(passenger.age) > 30;
+  });
+
+  var menOlderThan30 = records.filter(function (passenger) {
+    return passenger.sex === 'male' && parseInt(passenger.age) > 30;
+  });
+
   console.log(records);
 })();
