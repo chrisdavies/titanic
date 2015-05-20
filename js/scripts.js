@@ -1,7 +1,9 @@
 (function () {
   'use strict';
 
-  var records = csvToObjects(titanic, ['id', 'survived', 'pclass', 'name'], true);
+  var records = CSV.toArray(titanic)
+    .map(arrayToObject(['id', 'survived', 'pclass', 'name']))
+    .slice(1);
 
   console.log(records);
 })();
